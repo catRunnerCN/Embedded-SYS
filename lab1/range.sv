@@ -24,7 +24,6 @@ module range
    logic [RAM_ADDR_BITS - 1:0] 	 num;         // The RAM address to write
    logic 			 running = 0; // True during the iterations
    logic [15:0] 		 iter_count;
-   localparam logic [RAM_ADDR_BITS - 1:0] LAST_NUM = RAM_WORDS - 1;
 
    always_ff @(posedge clk) begin
       we <= 1'b0;
@@ -42,7 +41,7 @@ module range
             din <= iter_count;
             we <= 1'b1;
 
-            if (num == LAST_NUM) begin
+            if (num == RAM_ADDR_BITS'(RAM_WORDS - 1)) begin
                running <= 1'b0;
                done <= 1'b1;
             end else begin
