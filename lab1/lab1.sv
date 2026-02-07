@@ -27,14 +27,14 @@ module lab1( input logic        CLOCK_50,  // 50 MHz Clock input
    range #(256, 8) // RAM_WORDS = 256, RAM_ADDR_BITS = 8
    r ( .* ); // Connect everything with matching names
 
-   // KEY[3] = run, KEY[2] = reset offset, KEY[1] = decrement offset, KEY[0] = increment offset
+   // Pushbuttons are active-low on the DE1-SoC board
    logic run_btn, rst_btn, dec_btn, inc_btn;
    assign run_btn = ~KEY[3];
    assign rst_btn = ~KEY[2];
    assign dec_btn = ~KEY[1];
    assign inc_btn = ~KEY[0];
 
-   // Rising-edge pulse generation for active-high button signals
+   // Button edge detection (for one-shot actions)
    logic run_btn_d, rst_btn_d, dec_btn_d, inc_btn_d;
    always_ff @(posedge clk) begin
       run_btn_d <= run_btn;
@@ -48,24 +48,31 @@ module lab1( input logic        CLOCK_50,  // 50 MHz Clock input
    wire dec_pulse = dec_btn & ~dec_btn_d;
    wire inc_pulse = inc_btn & ~inc_btn_d;
 
-   // Offset for selecting one of 256 computed results
+   // Hold-to-repeat support for KEY[0]/KEY[1]
+   logic [21:0] repeat_ctr;
+   always_ff @(posedge clk) repeat_ctr <= repeat_ctr + 22'd1;
+   wire repeat_tick = (repeat_ctr == 22'd0);
+
+   wire inc_step = inc_pulse | (inc_btn & repeat_tick);
+   wire dec_step = dec_pulse | (dec_btn & repeat_tick);
+
+   // Select one of 256 computed results (base from switches + offset)
    logic [7:0] offset;
    always_ff @(posedge clk) begin
       if (rst_pulse) begin
          offset <= 8'd0;
-      end else if (inc_pulse && !dec_btn) begin
-         if (offset != 8'hFF) offset <= offset + 8'd1;
-      end else if (dec_pulse && !inc_btn) begin
-         if (offset != 8'h00) offset <= offset - 8'd1;
+      end else if (inc_step && !dec_btn) begin
+         offset <= offset + 8'd1;
+      end else if (dec_step && !inc_btn) begin
+         offset <= offset - 8'd1;
       end
    end
 
    wire [31:0] base_n   = {22'b0, SW};
    wire [31:0] disp_n32 = base_n + {24'b0, offset};
 
-   // During run (or before first completion), range needs base start value.
-   // After completion, range reads RAM using start[7:0] as address.
-   assign start = (go || !done) ? base_n : {24'b0, offset};
+   // Before finished: start value for range run. After finished: address for readout.
+   assign start = (done && !go) ? {24'b0, offset} : base_n;
    assign go    = run_pulse;
    assign n     = disp_n32[11:0];
 
@@ -79,8 +86,8 @@ module lab1( input logic        CLOCK_50,  // 50 MHz Clock input
    hex7seg h1( count[7:4],  HEX1 );
    hex7seg h0( count[3:0],  HEX0 );
 
-   // LED status: lower 8 bits show offset, LEDR[8]=go pulse, LEDR[9]=done
-   assign LEDR[7:0] = offset;
+   // LEDs: SW mirrored on lower bits; go pulse and done status on top LEDs
+   assign LEDR[7:0] = SW[7:0];
    assign LEDR[8]   = go;
    assign LEDR[9]   = done;
 
