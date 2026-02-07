@@ -25,8 +25,10 @@ module range
    logic 			 running = 0; // True during the iterations
    logic [15:0] 		 iter_count;
 
+   logic [15:0] 		 mem[RAM_WORDS - 1:0];  // The RAM itself
+   logic [RAM_ADDR_BITS - 1:0] addr;         // Address to read
+
    always_ff @(posedge clk) begin
-      we <= 1'b0;
       cgo <= 1'b0;
 
       if (go && !running) begin
@@ -38,8 +40,7 @@ module range
          cgo <= 1'b1;
       end else if (running) begin
          if (cdone) begin
-            din <= iter_count;
-            we <= 1'b1;
+            mem[num] <= iter_count;
 
             if (num == RAM_ADDR_BITS'(RAM_WORDS - 1)) begin
                running <= 1'b0;
@@ -54,19 +55,11 @@ module range
             iter_count <= iter_count + 16'd1;
          end
       end
+
+      count <= mem[addr];
    end
 
-   logic 			 we;                    // Write din to addr
-   logic [15:0] 		 din;                   // Data to write
-   logic [15:0] 		 mem[RAM_WORDS - 1:0];  // The RAM itself
-   logic [RAM_ADDR_BITS - 1:0] 	 addr;                  // Address to read/write
-
-   assign addr = we ? num : start[RAM_ADDR_BITS-1:0];
-   
-   always_ff @(posedge clk) begin
-      if (we) mem[addr] <= din;
-      count <= mem[addr];      
-   end
+   assign addr = start[RAM_ADDR_BITS-1:0];
 
 endmodule
 	     
