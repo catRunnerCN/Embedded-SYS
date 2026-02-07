@@ -41,7 +41,7 @@ module range
             din <= iter_count;
             we <= 1'b1;
 
-            if (num == RAM_WORDS - 1) begin
+            if (num == RAM_ADDR_BITS'(RAM_WORDS - 1)) begin
                running <= 1'b0;
                done <= 1'b1;
             end else begin
