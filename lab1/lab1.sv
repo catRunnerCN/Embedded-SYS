@@ -17,7 +17,7 @@ module lab1( input logic        CLOCK_50,  // 50 MHz Clock input
 	     output logic [9:0] LEDR // LEDs above the switches; LED[0] on right
 	     );
 
-   logic 			clk, go, done;   
+   logic 			clk, go, done;
    logic [31:0] 		start;
    logic [15:0] 		count;
 
@@ -94,18 +94,16 @@ module lab1( input logic        CLOCK_50,  // 50 MHz Clock input
 
       // ----------------------------------------------------------------
       // Connect UI to range:
-      // start = base n from switches
-      // n     = which entry to read (0..255) via offset
-      // go    = pulse when KEY[3] pressed
+      // - press run: range starts from base_n and fills 256 entries
+      // - when done: read RAM entry selected by offset
       // ----------------------------------------------------------------
-      wire [31:0] base_n = {22'b0, SW};           // switches set the starting n
+      wire [31:0] base_n = {22'b0, SW};
       wire [31:0] disp_n32 = base_n + {24'b0, offset};
-
-      assign start = base_n;                      // range runs [start .. start+255]
-      assign n     = disp_n32[11:0];              // for display: lower 12 bits of actual n
 
       logic [7:0] addr;
       assign addr = offset;
+      assign start = (go || !done) ? base_n : {24'b0, addr};
+      assign n     = disp_n32[11:0];
 
       // go should be a single-cycle pulse
       assign go = run_pulse;
@@ -120,6 +118,10 @@ module lab1( input logic        CLOCK_50,  // 50 MHz Clock input
       hex7seg h2( count[11:8], HEX2 );
       hex7seg h1( count[7:4],  HEX1 );
       hex7seg h0( count[3:0],  HEX0 );
+
+      assign LEDR[7:0] = addr;
+      assign LEDR[8]   = go;
+      assign LEDR[9]   = done;
 
    
    
